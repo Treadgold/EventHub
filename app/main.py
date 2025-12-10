@@ -20,6 +20,10 @@ import json
 import dateutil.parser
 import logging
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -30,13 +34,17 @@ templates = Jinja2Templates(directory="app/templates")
 
 # Session middleware with proper cookie configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+SESSION_MAX_AGE_DAYS = int(os.getenv("SESSION_MAX_AGE_DAYS", "30"))
+SESSION_SAME_SITE = os.getenv("SESSION_SAME_SITE", "lax")
+SESSION_HTTPS_ONLY = os.getenv("SESSION_HTTPS_ONLY", "false").lower() == "true"
+
 app.add_middleware(
     SessionMiddleware,
     secret_key=SECRET_KEY,
     session_cookie="session",
-    max_age=60 * 60 * 24 * 30,  # 30 days
-    same_site="lax",
-    https_only=False,  # Set to True in production with HTTPS
+    max_age=60 * 60 * 24 * SESSION_MAX_AGE_DAYS,  # From environment variable
+    same_site=SESSION_SAME_SITE,
+    https_only=SESSION_HTTPS_ONLY,
 )
 
 # Custom Jinja2 filter for human-readable date formatting

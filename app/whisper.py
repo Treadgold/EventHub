@@ -14,6 +14,10 @@ import logging
 from typing import Optional, Dict, Any
 from dataclasses import dataclass
 from enum import Enum
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 

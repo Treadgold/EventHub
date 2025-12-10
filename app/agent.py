@@ -5,9 +5,16 @@ from langgraph.graph import StateGraph, END
 from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from app.models import EventSchema
+from dotenv import load_dotenv
 
-# Get Ollama URL from environment variable (for Docker support)
+# Load environment variables from .env file
+load_dotenv()
+
+# Get Ollama configuration from environment variables
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gpt-oss:20b")
+OLLAMA_TEMPERATURE = float(os.getenv("OLLAMA_TEMPERATURE", "0"))
+OLLAMA_CONVERSATIONAL_TEMPERATURE = float(os.getenv("OLLAMA_CONVERSATIONAL_TEMPERATURE", "0.7"))
 
 # 1. Define the State
 class AgentState(TypedDict):
@@ -15,18 +22,26 @@ class AgentState(TypedDict):
     event_draft: Dict[str, Any]  # Current state of the JSON object
     schema_definition: str  # The API requirement description
     next_step: str  # Internal flag for the agent flow
+    needs_long_description: bool  # Flag to indicate if long description generation is needed
+    description_field: str  # Which field needs long description (e.g., "description")
 
 # 2. Setup LLM
 # Ensure you have Ollama running: `ollama run llama3` (or mistral, etc.)
 llm = ChatOllama(
-    model="gpt-oss:20b", 
-    temperature=0, 
+    model=OLLAMA_MODEL, 
+    temperature=OLLAMA_TEMPERATURE, 
     format="json",
     base_url=OLLAMA_URL
 )
 conversational_llm = ChatOllama(
-    model="gpt-oss:20b", 
-    temperature=0.7,
+    model=OLLAMA_MODEL, 
+    temperature=OLLAMA_CONVERSATIONAL_TEMPERATURE,
+    base_url=OLLAMA_URL
+)
+# LLM for creative writing with higher temperature for more creative output
+creative_llm = ChatOllama(
+    model=OLLAMA_MODEL,
+    temperature=0.9,  # Higher temperature for more creative output
     base_url=OLLAMA_URL
 )
 
@@ -96,6 +111,7 @@ def data_extractor(state: AgentState):
     """
     Uses the LLM to extract event data from the latest user message 
     based on the current draft and schema.
+    Also detects if user wants long descriptions generated.
     """
     schema_info = state['schema_definition']
     current_draft = state['event_draft']
@@ -119,6 +135,12 @@ def data_extractor(state: AgentState):
     Return ONLY a JSON object with the fields to update. 
     If a field is not mentioned or unchanged, do not include it.
     If the user explicitly clears a field, set it to null.
+    
+    SPECIAL INSTRUCTION:
+    If the user asks for a "long description", "detailed description", "creative description", 
+    "advertising copy", "marketing copy", or similar requests for longer creative text,
+    include a special field "_needs_long_description" set to true, and "_description_field" 
+    set to the field name (usually "description").
     """
 
     response = llm.invoke([SystemMessage(content=system_prompt)])
@@ -129,13 +151,105 @@ def data_extractor(state: AgentState):
     except json.JSONDecodeError:
         updates = {}
 
+    # Check if user wants long description generated
+    needs_long_desc = updates.pop("_needs_long_description", False)
+    description_field = updates.pop("_description_field", "description")
+    
+    # Also check the user message directly for common phrases
+    user_message_lower = last_message.lower()
+    long_desc_keywords = [
+        "long description", "detailed description", "creative description",
+        "advertising copy", "marketing copy", "write a longer", "generate a longer",
+        "make it longer", "expand the description", "write more about"
+    ]
+    
+    if not needs_long_desc:
+        for keyword in long_desc_keywords:
+            if keyword in user_message_lower:
+                needs_long_desc = True
+                # Try to determine which field they want
+                if "description" in user_message_lower:
+                    description_field = "description"
+                break
+
     # Merge updates into draft
     updated_draft = current_draft.copy()
     updated_draft.update(updates)
 
-    return {"event_draft": updated_draft}
+    return {
+        "event_draft": updated_draft,
+        "needs_long_description": needs_long_desc,
+        "description_field": description_field
+    }
 
-# 5. Node: Determine Status & Formulate Response
+# 5. Node: Generate Long Creative Description
+def generate_long_description(state: AgentState):
+    """
+    Generates a longer, creative advertising-style description for the event.
+    This is a separate "function call" that spins off to create engaging copy.
+    """
+    draft = state['event_draft']
+    description_field = state.get('description_field', 'description')
+    schema_info = state['schema_definition']
+    
+    # Get context about the event for creative writing
+    cost_value = draft.get('cost', 0)
+    try:
+        cost_float = float(cost_value) if cost_value is not None else 0.0
+    except (ValueError, TypeError):
+        cost_float = 0.0
+    
+    event_context = {
+        'title': draft.get('title', 'this event'),
+        'is_online': draft.get('is_online'),
+        'location': draft.get('location_address') or draft.get('online_url'),
+        'start_time': draft.get('start_time'),
+        'cost': cost_float,
+        'tags': draft.get('tags', [])
+    }
+    
+    # Format cost for display
+    cost_display = f"${cost_float:.2f}" if cost_float > 0 else "Free"
+    
+    # Create a creative writing prompt
+    creative_prompt = f"""You are a creative copywriter specializing in event marketing and advertising.
+
+EVENT DETAILS:
+- Title: {event_context['title']}
+- Type: {'Online' if event_context['is_online'] else 'In-Person'}
+- Location: {event_context['location'] or 'TBD'}
+- Start Time: {event_context['start_time'] or 'TBD'}
+- Cost: {cost_display}
+- Tags/Categories: {', '.join(event_context['tags']) if event_context['tags'] else 'None specified'}
+
+TASK:
+Write an engaging, creative, and compelling event description that:
+1. Captures attention and builds excitement
+2. Clearly communicates what the event is about
+3. Highlights key benefits and what attendees will experience
+4. Uses persuasive, marketing-style language
+5. Is detailed enough to be informative (aim for 3-5 paragraphs, 200-400 words)
+6. Maintains a professional yet enthusiastic tone
+
+Write ONLY the description text. Do not include any meta-commentary, instructions, or JSON formatting.
+Just write the creative advertising copy for the event description."""
+
+    # Use the creative LLM with higher temperature
+    response = creative_llm.invoke([SystemMessage(content=creative_prompt)])
+    
+    # Extract the generated description
+    generated_description = response.content.strip()
+    
+    # Update the draft with the generated description
+    updated_draft = draft.copy()
+    updated_draft[description_field] = generated_description
+    
+    return {
+        "event_draft": updated_draft,
+        "needs_long_description": False  # Reset the flag
+    }
+
+# 6. Node: Determine Status & Formulate Response
 def response_generator(state: AgentState):
     """
     Analyzes the draft, checks completeness, and prompts the user.
@@ -184,14 +298,34 @@ def response_generator(state: AgentState):
 
     return {"messages": [response]}
 
-# 6. Build Graph
+# 7. Conditional routing function
+def should_generate_description(state: AgentState) -> str:
+    """Route to description generation if needed, otherwise go to response generation"""
+    if state.get("needs_long_description", False):
+        return "generate_long_description"
+    return "generate_response"
+
+# 8. Build Graph
 workflow = StateGraph(AgentState)
 
 workflow.add_node("extract_data", data_extractor)
+workflow.add_node("generate_long_description", generate_long_description)
 workflow.add_node("generate_response", response_generator)
 
 workflow.set_entry_point("extract_data")
-workflow.add_edge("extract_data", "generate_response")
+
+# Conditional routing: if long description needed, generate it first
+workflow.add_conditional_edges(
+    "extract_data",
+    should_generate_description,
+    {
+        "generate_long_description": "generate_long_description",
+        "generate_response": "generate_response"
+    }
+)
+
+# After generating long description, go to response generation
+workflow.add_edge("generate_long_description", "generate_response")
 workflow.add_edge("generate_response", END)
 
 app_graph = workflow.compile()
@@ -222,7 +356,9 @@ async def process_user_message(user_input: str, current_draft: dict, chat_histor
         "messages": converted_history + [HumanMessage(content=user_input)],
         "event_draft": current_draft,
         "schema_definition": get_schema_instructions(),
-        "next_step": ""
+        "next_step": "",
+        "needs_long_description": False,
+        "description_field": "description"
     }
     
     result = await app_graph.ainvoke(initial_state)
