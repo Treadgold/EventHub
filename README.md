@@ -4,7 +4,7 @@ A modern event management platform with AI-powered event creation.
 
 ## Features
 
-- AI-powered event creation assistant using LangGraph and Ollama
+- AI-powered event creation assistant using LangGraph and Ollama (GPT-oss 20b model)
 - Role-based authentication (Admin, Event Organiser, User)
 - User authentication and registration
 - MongoDB database for persistent storage
@@ -24,6 +24,8 @@ A modern event management platform with AI-powered event creation.
 *Event Organisers cannot delete their own events once they are "live" (start time has passed), as users may have already booked tickets.
 
 ## Quick Start with Docker
+
+> **Prerequisites:** Ensure Ollama is running on your host machine with the GPT-oss 20b model installed. See [Ollama Setup](#ollama-setup) below.
 
 1. **Start the application:**
    ```bash
@@ -98,4 +100,25 @@ For local development without Docker:
 - Docker and Docker Compose
 - Python 3.11+ (for local development)
 - MongoDB (handled by Docker Compose)
+- **Ollama** running on the host machine with the **GPT-oss 20b** model
+
+### Ollama Setup
+
+The AI-powered event creation feature requires Ollama to be running on the host machine (the same machine running Docker). The application uses the GPT-oss 20b model.
+
+1. **Install Ollama** from [ollama.com](https://ollama.com)
+
+2. **Pull the GPT-oss 20b model:**
+   ```bash
+   ollama pull gpt-oss:20b
+   ```
+
+3. **Ensure Ollama is running** before starting the Docker containers:
+   ```bash
+   ollama serve
+   ```
+
+> **Note:** The GPT-oss 20b model requires significant system resources. Ensure your machine has adequate RAM and GPU capabilities to run this model.
+
+> **Windows + WSL Users:** If running Docker in WSL while Ollama runs on Windows, you may need to configure the Ollama URL to point to your Windows host IP (e.g., `192.168.137.146:11434`) instead of `localhost`.
 
