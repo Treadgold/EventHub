@@ -1,0 +1,529 @@
+{% extends "base.html" %}
+
+{% block title %}Whisper Config - EventHub{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-y-auto h-full custom-scrollbar">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+            <svg class="w-8 h-8 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+            </svg>
+            Voice Input Configuration
+        </h1>
+        <p class="text-slate-400">Configure Whisper speech-to-text for voice input in the chat interface</p>
+    </div>
+
+    <!-- Status Card -->
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-6 mb-6">
+        <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Whisper Server Status
+        </h2>
+        
+        <div id="whisper-status" class="space-y-3">
+            {% if whisper_status.status == "available" %}
+            <div class="flex items-center gap-3">
+                <span class="flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+                <span class="text-emerald-400 font-medium">Connected & Ready</span>
+            </div>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <span class="text-slate-500">Server URL:</span>
+                    <span class="text-slate-300 ml-2 font-mono text-xs">{{ whisper_status.server_url }}</span>
+                </div>
+                <div>
+                    <span class="text-slate-500">Model:</span>
+                    <span class="text-slate-300 ml-2">{{ whisper_status.model or "whisper.cpp" }}</span>
+                </div>
+            </div>
+            {% elif whisper_status.status == "unavailable" %}
+            <div class="flex items-center gap-3">
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                <span class="text-amber-400 font-medium">Server Unavailable</span>
+            </div>
+            <p class="text-slate-400 text-sm">{{ whisper_status.message }}</p>
+            {% else %}
+            <div class="flex items-center gap-3">
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                <span class="text-red-400 font-medium">Error</span>
+            </div>
+            <p class="text-slate-400 text-sm">{{ whisper_status.message }}</p>
+            {% endif %}
+        </div>
+        
+        <div class="mt-4 pt-4 border-t border-slate-700">
+            <button id="refresh-status-btn" 
+                    hx-get="/whisper/status" 
+                    hx-target="#whisper-status"
+                    hx-swap="innerHTML"
+                    class="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Refresh Status
+            </button>
+        </div>
+    </div>
+
+    <!-- Microphone Selection Card -->
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-6 mb-6">
+        <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+            </svg>
+            Microphone Selection
+        </h2>
+        
+        <div id="mic-selection-area">
+            <div id="mic-permission-required" class="hidden">
+                <p class="text-slate-400 text-sm mb-4">
+                    Browser permission is required to access your microphone. Click below to grant access.
+                </p>
+                <button id="request-mic-permission" 
+                        class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                    Grant Microphone Access
+                </button>
+            </div>
+            
+            <div id="mic-select-container" class="hidden">
+                <label for="mic-select" class="block text-slate-400 text-sm mb-2">Select Input Device:</label>
+                <select id="mic-select" 
+                        class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 transition">
+                    <option value="">Loading devices...</option>
+                </select>
+                <p class="text-slate-500 text-xs mt-2">Selected device will be saved for voice input in the chat.</p>
+            </div>
+            
+            <div id="mic-error" class="hidden">
+                <p class="text-red-400 text-sm"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test Transcription Card -->
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-6 mb-6">
+        <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+            </svg>
+            Test Transcription
+        </h2>
+        
+        <p class="text-slate-400 text-sm mb-4">
+            Record a short audio sample to test if Whisper is transcribing correctly.
+        </p>
+        
+        <div class="flex flex-col gap-4">
+            <!-- Recording controls -->
+            <div class="flex items-center gap-4">
+                <button id="record-test-btn" 
+                        class="bg-rose-600 hover:bg-rose-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-medium transition flex items-center gap-2"
+                        {% if whisper_status.status != "available" %}disabled{% endif %}>
+                    <svg id="record-icon" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="6"></circle>
+                    </svg>
+                    <span id="record-btn-text">Start Recording</span>
+                </button>
+                
+                <div id="recording-indicator" class="hidden flex items-center gap-2 text-rose-400">
+                    <span class="flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-rose-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+                    </span>
+                    <span id="recording-time">0:00</span>
+                </div>
+            </div>
+            
+            <!-- Transcription result -->
+            <div id="transcription-result" class="hidden">
+                <div class="bg-slate-900 rounded-lg p-4 border border-slate-700">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-slate-500 text-xs uppercase tracking-wider">Transcription Result</span>
+                        <span id="transcription-time" class="text-slate-500 text-xs"></span>
+                    </div>
+                    <p id="transcription-text" class="text-white"></p>
+                </div>
+            </div>
+            
+            <!-- Error display -->
+            <div id="transcription-error" class="hidden">
+                <div class="bg-red-900/30 border border-red-700 rounded-lg p-4">
+                    <p id="transcription-error-text" class="text-red-400 text-sm"></p>
+                </div>
+            </div>
+            
+            <!-- Processing indicator -->
+            <div id="processing-transcription" class="hidden flex items-center gap-2 text-blue-400">
+                <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Transcribing...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Setup Instructions Card -->
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-6">
+        <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Setup Instructions
+        </h2>
+        
+        <div class="prose prose-invert prose-sm max-w-none">
+            <p class="text-slate-400">
+                The Whisper server is automatically started with Docker Compose. No manual setup required!
+            </p>
+            
+            <div class="bg-slate-900 rounded-lg p-4 my-4 font-mono text-sm overflow-x-auto">
+                <div class="text-slate-500 mb-2"># Start all services (including Whisper)</div>
+                <div class="text-emerald-400">docker-compose up -d</div>
+                <div class="text-slate-500 mt-4 mb-2"># Check Whisper service status</div>
+                <div class="text-emerald-400">docker-compose ps whisper</div>
+                <div class="text-slate-500 mt-4 mb-2"># View Whisper logs</div>
+                <div class="text-emerald-400">docker-compose logs -f whisper</div>
+            </div>
+            
+            <p class="text-slate-400 mt-4">
+                The Whisper server runs in CPU mode by default. The Docker container automatically:
+            </p>
+            <ul class="text-slate-400 text-sm list-disc list-inside mt-2 space-y-1">
+                <li>Builds whisper.cpp from source</li>
+                <li>Downloads the base.en model (English, optimized for CPU)</li>
+                <li>Starts the server on port 8080</li>
+            </ul>
+            
+            <p class="text-slate-400 mt-4">
+                For better performance, you can modify <code class="bg-slate-700 px-1 rounded">Dockerfile.whisper</code> to use GPU acceleration 
+                (requires CUDA on NVIDIA GPUs or Metal on macOS).
+            </p>
+            
+            <p class="text-slate-500 text-xs mt-4">
+                Note: The Whisper server URL is configured via the <code class="bg-slate-700 px-1 rounded">WHISPER_SERVER_URL</code> environment variable in docker-compose.yml.
+                Default: <code class="bg-slate-700 px-1 rounded">http://whisper:8080</code> (internal Docker network)
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Microphone handling
+    const micPermissionRequired = document.getElementById('mic-permission-required');
+    const micSelectContainer = document.getElementById('mic-select-container');
+    const micSelect = document.getElementById('mic-select');
+    const micError = document.getElementById('mic-error');
+    const requestMicBtn = document.getElementById('request-mic-permission');
+    
+    // Recording handling
+    const recordBtn = document.getElementById('record-test-btn');
+    const recordBtnText = document.getElementById('record-btn-text');
+    const recordIcon = document.getElementById('record-icon');
+    const recordingIndicator = document.getElementById('recording-indicator');
+    const recordingTime = document.getElementById('recording-time');
+    const transcriptionResult = document.getElementById('transcription-result');
+    const transcriptionText = document.getElementById('transcription-text');
+    const transcriptionTimeEl = document.getElementById('transcription-time');
+    const transcriptionError = document.getElementById('transcription-error');
+    const transcriptionErrorText = document.getElementById('transcription-error-text');
+    const processingIndicator = document.getElementById('processing-transcription');
+    
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordingStartTime = null;
+    let recordingTimer = null;
+    let selectedDeviceId = localStorage.getItem('whisper_mic_device_id') || '';
+    
+    // Check for existing microphone permissions
+    async function checkMicPermission() {
+        try {
+            const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
+            if (permissionStatus.state === 'granted') {
+                await loadAudioDevices();
+            } else if (permissionStatus.state === 'prompt') {
+                micPermissionRequired.classList.remove('hidden');
+            } else {
+                showMicError('Microphone permission was denied. Please enable it in your browser settings.');
+            }
+            
+            permissionStatus.onchange = async () => {
+                if (permissionStatus.state === 'granted') {
+                    await loadAudioDevices();
+                }
+            };
+        } catch (e) {
+            // Permissions API not supported, try direct access
+            micPermissionRequired.classList.remove('hidden');
+        }
+    }
+    
+    async function loadAudioDevices() {
+        try {
+            // Request access to trigger device enumeration with labels
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(track => track.stop());
+            
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const audioInputs = devices.filter(d => d.kind === 'audioinput');
+            
+            if (audioInputs.length === 0) {
+                showMicError('No microphone devices found.');
+                return;
+            }
+            
+            micPermissionRequired.classList.add('hidden');
+            micSelectContainer.classList.remove('hidden');
+            
+            micSelect.innerHTML = '';
+            audioInputs.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.textContent = device.label || `Microphone ${micSelect.children.length + 1}`;
+                if (device.deviceId === selectedDeviceId) {
+                    option.selected = true;
+                }
+                micSelect.appendChild(option);
+            });
+            
+            // If no saved device, select default
+            if (!selectedDeviceId && audioInputs.length > 0) {
+                selectedDeviceId = audioInputs[0].deviceId;
+            }
+            
+        } catch (e) {
+            showMicError('Error accessing microphone: ' + e.message);
+        }
+    }
+    
+    function showMicError(message) {
+        micPermissionRequired.classList.add('hidden');
+        micSelectContainer.classList.add('hidden');
+        micError.classList.remove('hidden');
+        micError.querySelector('p').textContent = message;
+    }
+    
+    requestMicBtn?.addEventListener('click', async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(track => track.stop());
+            await loadAudioDevices();
+        } catch (e) {
+            showMicError('Microphone access denied: ' + e.message);
+        }
+    });
+    
+    micSelect?.addEventListener('change', () => {
+        selectedDeviceId = micSelect.value;
+        localStorage.setItem('whisper_mic_device_id', selectedDeviceId);
+    });
+    
+    // Recording functionality
+    recordBtn?.addEventListener('click', async () => {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            stopRecording();
+        } else {
+            await startRecording();
+        }
+    });
+    
+    async function startRecording() {
+        try {
+            const constraints = {
+                audio: selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true
+            };
+            
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            
+            mediaRecorder = new MediaRecorder(stream, {
+                mimeType: 'audio/webm;codecs=opus'
+            });
+            
+            audioChunks = [];
+            
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    audioChunks.push(e.data);
+                }
+            };
+            
+            mediaRecorder.onstop = async () => {
+                stream.getTracks().forEach(track => track.stop());
+                await processRecording();
+            };
+            
+            mediaRecorder.start(100); // Collect data every 100ms
+            
+            // Update UI
+            recordBtnText.textContent = 'Stop Recording';
+            recordIcon.innerHTML = '<rect x="6" y="6" width="12" height="12" rx="1"></rect>';
+            recordBtn.classList.remove('bg-rose-600', 'hover:bg-rose-500');
+            recordBtn.classList.add('bg-slate-600', 'hover:bg-slate-500');
+            recordingIndicator.classList.remove('hidden');
+            transcriptionResult.classList.add('hidden');
+            transcriptionError.classList.add('hidden');
+            
+            // Start timer
+            recordingStartTime = Date.now();
+            recordingTimer = setInterval(updateRecordingTime, 100);
+            
+        } catch (e) {
+            showTranscriptionError('Error starting recording: ' + e.message);
+        }
+    }
+    
+    function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+        }
+        
+        clearInterval(recordingTimer);
+        recordingIndicator.classList.add('hidden');
+        
+        // Reset button
+        recordBtnText.textContent = 'Start Recording';
+        recordIcon.innerHTML = '<circle cx="12" cy="12" r="6"></circle>';
+        recordBtn.classList.add('bg-rose-600', 'hover:bg-rose-500');
+        recordBtn.classList.remove('bg-slate-600', 'hover:bg-slate-500');
+    }
+    
+    function updateRecordingTime() {
+        const elapsed = Date.now() - recordingStartTime;
+        const seconds = Math.floor(elapsed / 1000);
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        recordingTime.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    async function processRecording() {
+        if (audioChunks.length === 0) {
+            showTranscriptionError('No audio recorded');
+            return;
+        }
+        
+        processingIndicator.classList.remove('hidden');
+        recordBtn.disabled = true;
+        
+        try {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            
+            // Convert to WAV for better compatibility
+            const wavBlob = await convertToWav(audioBlob);
+            
+            const formData = new FormData();
+            formData.append('audio', wavBlob, 'recording.wav');
+            
+            const startTime = Date.now();
+            const response = await fetch('/whisper/transcribe', {
+                method: 'POST',
+                body: formData
+            });
+            const elapsedTime = Date.now() - startTime;
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                transcriptionText.textContent = result.text || '(No speech detected)';
+                transcriptionTimeEl.textContent = `Processed in ${elapsedTime}ms`;
+                transcriptionResult.classList.remove('hidden');
+                transcriptionError.classList.add('hidden');
+            } else {
+                showTranscriptionError(result.error || 'Transcription failed');
+            }
+            
+        } catch (e) {
+            showTranscriptionError('Error processing audio: ' + e.message);
+        } finally {
+            processingIndicator.classList.add('hidden');
+            recordBtn.disabled = false;
+        }
+    }
+    
+    function showTranscriptionError(message) {
+        transcriptionErrorText.textContent = message;
+        transcriptionError.classList.remove('hidden');
+        transcriptionResult.classList.add('hidden');
+    }
+    
+    // Convert WebM to WAV using AudioContext
+    async function convertToWav(webmBlob) {
+        const arrayBuffer = await webmBlob.arrayBuffer();
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        try {
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            
+            // Convert to 16kHz mono WAV (optimal for Whisper)
+            const targetSampleRate = 16000;
+            const offlineContext = new OfflineAudioContext(1, audioBuffer.duration * targetSampleRate, targetSampleRate);
+            
+            const source = offlineContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(offlineContext.destination);
+            source.start(0);
+            
+            const renderedBuffer = await offlineContext.startRendering();
+            const wavData = encodeWav(renderedBuffer);
+            
+            return new Blob([wavData], { type: 'audio/wav' });
+        } finally {
+            audioContext.close();
+        }
+    }
+    
+    function encodeWav(audioBuffer) {
+        const numChannels = audioBuffer.numberOfChannels;
+        const sampleRate = audioBuffer.sampleRate;
+        const format = 1; // PCM
+        const bitsPerSample = 16;
+        
+        const samples = audioBuffer.getChannelData(0);
+        const buffer = new ArrayBuffer(44 + samples.length * 2);
+        const view = new DataView(buffer);
+        
+        // WAV header
+        writeString(view, 0, 'RIFF');
+        view.setUint32(4, 36 + samples.length * 2, true);
+        writeString(view, 8, 'WAVE');
+        writeString(view, 12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, format, true);
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * numChannels * bitsPerSample / 8, true);
+        view.setUint16(32, numChannels * bitsPerSample / 8, true);
+        view.setUint16(34, bitsPerSample, true);
+        writeString(view, 36, 'data');
+        view.setUint32(40, samples.length * 2, true);
+        
+        // Convert float samples to 16-bit PCM
+        let offset = 44;
+        for (let i = 0; i < samples.length; i++, offset += 2) {
+            const s = Math.max(-1, Math.min(1, samples[i]));
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        }
+        
+        return buffer;
+    }
+    
+    function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+            view.setUint8(offset + i, string.charCodeAt(i));
+        }
+    }
+    
+    // Initialize
+    checkMicPermission();
+</script>
+{% endblock %}
+

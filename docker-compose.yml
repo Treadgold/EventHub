@@ -16,6 +16,26 @@ services:
       retries: 5
       start_period: 10s
 
+  whisper:
+    build:
+      context: .
+      dockerfile: Dockerfile.whisper
+    container_name: eventhub_whisper
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    # Optional: Mount a volume to persist models (speeds up subsequent starts)
+    volumes:
+      - whisper_models:/app/models
+    # Healthcheck to ensure server is ready
+    # Check if the server port is listening (curl will fail if connection refused)
+    healthcheck:
+      test: ["CMD-SHELL", "curl --connect-timeout 2 --max-time 3 -s http://localhost:8080 > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   web:
     build: .
     container_name: eventhub_web
@@ -27,14 +47,19 @@ services:
       DATABASE_NAME: event_website
       SECRET_KEY: your-secret-key-change-in-production-please-use-a-secure-random-key
       OLLAMA_URL: http://host.docker.internal:11434
+      # Whisper server URL - now points to the whisper service
+      WHISPER_SERVER_URL: http://whisper:8080
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       mongodb:
+        condition: service_healthy
+      whisper:
         condition: service_healthy
     volumes:
       - ./app:/app/app
 
 volumes:
   mongodb_data:
+  whisper_models:
 

@@ -1,0 +1,32 @@
+{% if whisper_status.status == "available" %}
+<div class="flex items-center gap-3">
+    <span class="flex h-3 w-3">
+        <span class="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-emerald-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+    </span>
+    <span class="text-emerald-400 font-medium">Connected & Ready</span>
+</div>
+<div class="grid grid-cols-2 gap-4 text-sm mt-3">
+    <div>
+        <span class="text-slate-500">Server URL:</span>
+        <span class="text-slate-300 ml-2 font-mono text-xs">{{ whisper_status.server_url }}</span>
+    </div>
+    <div>
+        <span class="text-slate-500">Model:</span>
+        <span class="text-slate-300 ml-2">{{ whisper_status.model or "whisper.cpp" }}</span>
+    </div>
+</div>
+{% elif whisper_status.status == "unavailable" %}
+<div class="flex items-center gap-3">
+    <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+    <span class="text-amber-400 font-medium">Server Unavailable</span>
+</div>
+<p class="text-slate-400 text-sm mt-3">{{ whisper_status.message }}</p>
+{% else %}
+<div class="flex items-center gap-3">
+    <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+    <span class="text-red-400 font-medium">Error</span>
+</div>
+<p class="text-slate-400 text-sm mt-3">{{ whisper_status.message }}</p>
+{% endif %}
+

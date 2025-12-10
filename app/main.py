@@ -13,6 +13,7 @@ from app.auth import (
     can_create_events, can_edit_event, can_delete_event, can_edit_users,
     UserRole
 )
+from app.whisper import check_whisper_status, transcribe_audio, WhisperStatus
 from bson import ObjectId
 from datetime import datetime
 import json
@@ -534,6 +535,26 @@ async def save_event(request: Request):
         })
 
 
+@app.post("/clear-draft", response_class=HTMLResponse)
+async def clear_draft(request: Request):
+    """Clear the event draft from session (requires admin or event_organiser role)"""
+    current_user = await get_template_user(request)
+    
+    if not current_user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+    
+    if not can_create_events(current_user):
+        raise HTTPException(status_code=403, detail="You don't have permission to create events")
+    
+    session_id = f"event_draft_{current_user.id}"
+    
+    # Clear the draft and history from session
+    request.session[session_id] = {"draft": {}, "history": []}
+    
+    # Redirect back to create-event page
+    return RedirectResponse(url="/create-event", status_code=status.HTTP_302_FOUND)
+
+
 # ============================================================================
 # ADMIN ROUTES (require admin role)
 # ============================================================================
@@ -607,3 +628,79 @@ async def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
     
     return RedirectResponse(url="/admin/users", status_code=status.HTTP_302_FOUND)
+
+
+# ============================================================================
+# WHISPER SPEECH-TO-TEXT ROUTES
+# ============================================================================
+
+@app.get("/whisper/config", response_class=HTMLResponse)
+async def whisper_config_page(request: Request):
+    """Whisper configuration page"""
+    current_user = await get_template_user(request)
+    whisper_status = await check_whisper_status()
+    
+    return templates.TemplateResponse("whisper_config.html", {
+        "request": request,
+        "current_user": current_user,
+        "whisper_status": whisper_status
+    })
+
+
+@app.get("/whisper/status", response_class=HTMLResponse)
+async def whisper_status_endpoint(request: Request):
+    """Get Whisper server status (for HTMX refresh)"""
+    whisper_status = await check_whisper_status()
+    
+    return templates.TemplateResponse("components/whisper_status.html", {
+        "request": request,
+        "whisper_status": whisper_status
+    })
+
+
+@app.get("/whisper/available")
+async def whisper_available():
+    """Check if Whisper is available (JSON API for frontend)"""
+    whisper_status = await check_whisper_status()
+    return {
+        "available": whisper_status.status == WhisperStatus.AVAILABLE,
+        "status": whisper_status.status,
+        "message": whisper_status.message
+    }
+
+
+@app.post("/whisper/transcribe")
+async def whisper_transcribe(request: Request):
+    """Transcribe audio file"""
+    from fastapi import UploadFile, File
+    
+    # Get form data with file
+    form = await request.form()
+    audio_file = form.get("audio")
+    
+    if not audio_file:
+        return {"success": False, "error": "No audio file provided"}
+    
+    try:
+        # Read audio data
+        audio_data = await audio_file.read()
+        
+        if len(audio_data) == 0:
+            return {"success": False, "error": "Empty audio file"}
+        
+        # Transcribe
+        result = await transcribe_audio(
+            audio_data=audio_data,
+            filename=getattr(audio_file, 'filename', 'audio.wav')
+        )
+        
+        return {
+            "success": result.success,
+            "text": result.text,
+            "error": result.error,
+            "language": result.language
+        }
+        
+    except Exception as e:
+        logger.error(f"Transcription error: {e}")
+        return {"success": False, "error": str(e)}

@@ -59,10 +59,29 @@
                         </div>
                     </div>
                 </div>
+                <!-- Microphone Button (hidden by default, shown when Whisper is available) -->
+                <button type="button" id="mic-button" 
+                        class="hidden bg-slate-700 hover:bg-rose-600 px-4 py-2 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed self-end group"
+                        title="Hold to record voice input">
+                    <svg id="mic-icon" class="w-5 h-5 text-slate-400 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                    </svg>
+                    <svg id="mic-recording-icon" class="hidden w-5 h-5 text-rose-400 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="6"></circle>
+                    </svg>
+                </button>
                 <button type="submit" id="send-button" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed self-end">
                     Send
                 </button>
             </form>
+            <!-- Voice recording status -->
+            <div id="voice-status" class="hidden mt-2 text-sm text-rose-400 flex items-center gap-2">
+                <span class="flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-rose-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                </span>
+                <span id="voice-status-text">Recording...</span>
+            </div>
         </div>
     </div>
 
@@ -98,7 +117,12 @@
             {% set location_valid = not needs_location or has_location %}
             {% set can_publish = has_title and has_is_online and has_start_time and location_valid %}
             
-            <div id="save-event-button-container">
+            <div id="save-event-button-container" class="flex justify-between items-center gap-4">
+                <button type="button" 
+                        id="clear-draft-button"
+                        class="bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-lg font-semibold transition">
+                    Clear Draft
+                </button>
                 <form method="POST" action="/save-event" class="flex justify-end">
                     <button type="submit" 
                             {% if not can_publish %}disabled{% endif %}
@@ -115,10 +139,79 @@
     </div>
 </div>
 
+<!-- Clear Draft Modal -->
+<div id="clear-draft-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4 border border-slate-700">
+        <h3 class="text-xl font-bold text-white mb-4">Clear Draft</h3>
+        <p class="text-slate-300 mb-6">What would you like to do with your current draft?</p>
+        
+        <div class="flex flex-col gap-3">
+            <button type="button" 
+                    id="delete-draft-button"
+                    class="w-full bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-semibold transition">
+                Delete Permanently
+            </button>
+            
+            <button type="button" 
+                    id="save-draft-button"
+                    class="w-full bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold transition">
+                Save Draft (Keep in Session)
+            </button>
+            
+            <button type="button" 
+                    id="cancel-clear-button"
+                    class="w-full bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-semibold transition">
+                Cancel
+            </button>
+        </div>
+        
+        <!-- Warning message for delete -->
+        <div id="delete-warning" class="hidden mt-4 p-3 bg-red-900 border border-red-700 rounded text-red-200 text-sm">
+            <p class="font-semibold mb-1">⚠️ Warning: This action cannot be undone!</p>
+            <p>All draft data and chat history will be permanently deleted.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-confirm-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4 border border-red-700">
+        <h3 class="text-xl font-bold text-red-400 mb-4">⚠️ Confirm Permanent Deletion</h3>
+        <p class="text-slate-300 mb-2">Are you sure you want to permanently delete your draft?</p>
+        <div class="bg-red-900 border border-red-700 rounded p-3 mb-6 text-red-200 text-sm">
+            <p class="font-semibold mb-1">This action cannot be undone!</p>
+            <p>All draft data and chat history will be permanently deleted.</p>
+        </div>
+        
+        <div class="flex gap-3">
+            <button type="button" 
+                    id="cancel-delete-button"
+                    class="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-semibold transition">
+                Cancel
+            </button>
+            <button type="button" 
+                    id="confirm-delete-button"
+                    class="flex-1 bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-semibold transition">
+                Yes, Delete Permanently
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     const chatForm = document.getElementById('chat-form');
     const userMessageInput = document.getElementById('user-message-input');
     const sendButton = document.getElementById('send-button');
+    const micButton = document.getElementById('mic-button');
+    const micIcon = document.getElementById('mic-icon');
+    const micRecordingIcon = document.getElementById('mic-recording-icon');
+    const voiceStatus = document.getElementById('voice-status');
+    const voiceStatusText = document.getElementById('voice-status-text');
+    
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+    let whisperAvailable = false;
     
     // Helper function to escape HTML
     function escapeHtml(text) {
@@ -194,6 +287,338 @@
         // Auto scroll chat to bottom
         const chatContainer = document.getElementById("chat-history");
         chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
+    
+    // ========================================================================
+    // VOICE INPUT FUNCTIONALITY
+    // ========================================================================
+    
+    // Check if Whisper is available
+    async function checkWhisperAvailability() {
+        try {
+            const response = await fetch('/whisper/available');
+            const data = await response.json();
+            whisperAvailable = data.available;
+            
+            if (whisperAvailable) {
+                micButton.classList.remove('hidden');
+            }
+        } catch (e) {
+            console.log('Whisper not available:', e);
+        }
+    }
+    
+    // Convert WebM to WAV
+    async function convertToWav(webmBlob) {
+        const arrayBuffer = await webmBlob.arrayBuffer();
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        try {
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            const targetSampleRate = 16000;
+            const offlineContext = new OfflineAudioContext(1, audioBuffer.duration * targetSampleRate, targetSampleRate);
+            
+            const source = offlineContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(offlineContext.destination);
+            source.start(0);
+            
+            const renderedBuffer = await offlineContext.startRendering();
+            const wavData = encodeWav(renderedBuffer);
+            
+            return new Blob([wavData], { type: 'audio/wav' });
+        } finally {
+            audioContext.close();
+        }
+    }
+    
+    function encodeWav(audioBuffer) {
+        const numChannels = audioBuffer.numberOfChannels;
+        const sampleRate = audioBuffer.sampleRate;
+        const format = 1;
+        const bitsPerSample = 16;
+        
+        const samples = audioBuffer.getChannelData(0);
+        const buffer = new ArrayBuffer(44 + samples.length * 2);
+        const view = new DataView(buffer);
+        
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+        
+        writeString(view, 0, 'RIFF');
+        view.setUint32(4, 36 + samples.length * 2, true);
+        writeString(view, 8, 'WAVE');
+        writeString(view, 12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, format, true);
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * numChannels * bitsPerSample / 8, true);
+        view.setUint16(32, numChannels * bitsPerSample / 8, true);
+        view.setUint16(34, bitsPerSample, true);
+        writeString(view, 36, 'data');
+        view.setUint32(40, samples.length * 2, true);
+        
+        let offset = 44;
+        for (let i = 0; i < samples.length; i++, offset += 2) {
+            const s = Math.max(-1, Math.min(1, samples[i]));
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        }
+        
+        return buffer;
+    }
+    
+    async function startRecording() {
+        try {
+            const deviceId = localStorage.getItem('whisper_mic_device_id');
+            const constraints = {
+                audio: deviceId ? { deviceId: { exact: deviceId } } : true
+            };
+            
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            
+            mediaRecorder = new MediaRecorder(stream, {
+                mimeType: 'audio/webm;codecs=opus'
+            });
+            
+            audioChunks = [];
+            
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    audioChunks.push(e.data);
+                }
+            };
+            
+            mediaRecorder.onstop = async () => {
+                stream.getTracks().forEach(track => track.stop());
+                await processVoiceRecording();
+            };
+            
+            mediaRecorder.start(100);
+            isRecording = true;
+            
+            // Update UI
+            micIcon.classList.add('hidden');
+            micRecordingIcon.classList.remove('hidden');
+            micButton.classList.remove('bg-slate-700', 'hover:bg-rose-600');
+            micButton.classList.add('bg-rose-600');
+            voiceStatus.classList.remove('hidden');
+            voiceStatusText.textContent = 'Recording... (click to stop)';
+            
+        } catch (e) {
+            console.error('Error starting recording:', e);
+            voiceStatus.classList.remove('hidden');
+            voiceStatusText.textContent = 'Microphone access denied. Check Voice Config.';
+            voiceStatusText.classList.add('text-amber-400');
+            voiceStatusText.classList.remove('text-rose-400');
+            setTimeout(() => {
+                voiceStatus.classList.add('hidden');
+                voiceStatusText.classList.remove('text-amber-400');
+                voiceStatusText.classList.add('text-rose-400');
+            }, 3000);
+        }
+    }
+    
+    function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            isRecording = false;
+            
+            // Reset button UI
+            micIcon.classList.remove('hidden');
+            micRecordingIcon.classList.add('hidden');
+            micButton.classList.add('bg-slate-700', 'hover:bg-rose-600');
+            micButton.classList.remove('bg-rose-600');
+        }
+    }
+    
+    async function processVoiceRecording() {
+        if (audioChunks.length === 0) {
+            voiceStatus.classList.add('hidden');
+            return;
+        }
+        
+        voiceStatusText.textContent = 'Transcribing...';
+        micButton.disabled = true;
+        
+        try {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const wavBlob = await convertToWav(audioBlob);
+            
+            const formData = new FormData();
+            formData.append('audio', wavBlob, 'recording.wav');
+            
+            const response = await fetch('/whisper/transcribe', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success && result.text) {
+                // Put transcribed text in input
+                userMessageInput.value = result.text;
+                userMessageInput.dispatchEvent(new Event('input'));
+                userMessageInput.focus();
+                voiceStatusText.textContent = 'Transcribed! Press Enter to send.';
+            } else {
+                voiceStatusText.textContent = result.error || 'No speech detected';
+                voiceStatusText.classList.add('text-amber-400');
+                voiceStatusText.classList.remove('text-rose-400');
+            }
+            
+        } catch (e) {
+            console.error('Transcription error:', e);
+            voiceStatusText.textContent = 'Transcription failed';
+            voiceStatusText.classList.add('text-amber-400');
+            voiceStatusText.classList.remove('text-rose-400');
+        } finally {
+            micButton.disabled = false;
+            
+            // Hide status after delay
+            setTimeout(() => {
+                voiceStatus.classList.add('hidden');
+                voiceStatusText.classList.remove('text-amber-400');
+                voiceStatusText.classList.add('text-rose-400');
+            }, 3000);
+        }
+    }
+    
+    // Mic button click handler
+    micButton?.addEventListener('click', () => {
+        if (isRecording) {
+            stopRecording();
+        } else {
+            startRecording();
+        }
+    });
+    
+    // Check whisper on page load
+    checkWhisperAvailability();
+    
+    // ========================================================================
+    // CLEAR DRAFT FUNCTIONALITY
+    // ========================================================================
+    
+    const clearDraftButton = document.getElementById('clear-draft-button');
+    const clearDraftModal = document.getElementById('clear-draft-modal');
+    const deleteConfirmModal = document.getElementById('delete-confirm-modal');
+    const cancelClearButton = document.getElementById('cancel-clear-button');
+    const saveDraftButton = document.getElementById('save-draft-button');
+    const deleteDraftButton = document.getElementById('delete-draft-button');
+    const confirmDeleteButton = document.getElementById('confirm-delete-button');
+    const cancelDeleteButton = document.getElementById('cancel-delete-button');
+    const deleteWarning = document.getElementById('delete-warning');
+    
+    // Show modal when Clear Draft button is clicked
+    clearDraftButton?.addEventListener('click', () => {
+        clearDraftModal.classList.remove('hidden');
+        deleteWarning.classList.add('hidden');
+    });
+    
+    // Hide modal when Cancel is clicked
+    cancelClearButton?.addEventListener('click', () => {
+        clearDraftModal.classList.add('hidden');
+        deleteWarning.classList.add('hidden');
+    });
+    
+    // Hide modal when clicking outside
+    clearDraftModal?.addEventListener('click', (e) => {
+        if (e.target === clearDraftModal) {
+            clearDraftModal.classList.add('hidden');
+            deleteWarning.classList.add('hidden');
+        }
+    });
+    
+    // Show warning when Delete Permanently button is hovered or focused
+    deleteDraftButton?.addEventListener('mouseenter', () => {
+        deleteWarning.classList.remove('hidden');
+    });
+    
+    deleteDraftButton?.addEventListener('focusin', () => {
+        deleteWarning.classList.remove('hidden');
+    });
+    
+    // Show confirmation modal when Delete Permanently is clicked
+    deleteDraftButton?.addEventListener('click', () => {
+        clearDraftModal.classList.add('hidden');
+        deleteConfirmModal.classList.remove('hidden');
+    });
+    
+    // Hide confirmation modal when Cancel is clicked
+    cancelDeleteButton?.addEventListener('click', () => {
+        deleteConfirmModal.classList.add('hidden');
+        clearDraftModal.classList.remove('hidden');
+    });
+    
+    // Hide confirmation modal when clicking outside
+    deleteConfirmModal?.addEventListener('click', (e) => {
+        if (e.target === deleteConfirmModal) {
+            deleteConfirmModal.classList.add('hidden');
+            clearDraftModal.classList.remove('hidden');
+        }
+    });
+    
+    // Save Draft button - just close modal (draft is already in session)
+    saveDraftButton?.addEventListener('click', () => {
+        clearDraftModal.classList.add('hidden');
+        deleteWarning.classList.add('hidden');
+        // Show a brief confirmation message
+        const originalText = saveDraftButton.textContent;
+        saveDraftButton.textContent = '✓ Draft Saved';
+        saveDraftButton.classList.remove('bg-blue-600', 'hover:bg-blue-500');
+        saveDraftButton.classList.add('bg-green-600');
+        setTimeout(() => {
+            saveDraftButton.textContent = originalText;
+            saveDraftButton.classList.remove('bg-green-600');
+            saveDraftButton.classList.add('bg-blue-600', 'hover:bg-blue-500');
+        }, 2000);
+    });
+    
+    // Handle delete confirmation - use fetch API
+    confirmDeleteButton?.addEventListener('click', async () => {
+        if (!confirmDeleteButton) return;
+        
+        // Disable button during request
+        confirmDeleteButton.disabled = true;
+        const originalText = confirmDeleteButton.textContent;
+        confirmDeleteButton.textContent = 'Deleting...';
+        
+        try {
+            const formData = new FormData();
+            formData.append('action', 'delete');
+            
+            const response = await fetch('/clear-draft', {
+                method: 'POST',
+                body: formData,
+                redirect: 'follow'
+            });
+            
+            if (response.ok || response.status === 200 || response.redirected) {
+                // Success - redirect to create-event page
+                window.location.href = '/create-event';
+            } else if (response.status === 404) {
+                // Not found error
+                alert('Route not found. Please refresh the page and try again.');
+                confirmDeleteButton.disabled = false;
+                confirmDeleteButton.textContent = originalText;
+            } else {
+                // Handle other errors
+                const errorText = await response.text();
+                console.error('Delete failed:', response.status, errorText);
+                alert('Failed to delete draft. Please try again.');
+                confirmDeleteButton.disabled = false;
+                confirmDeleteButton.textContent = originalText;
+            }
+        } catch (error) {
+            console.error('Error deleting draft:', error);
+            alert('An error occurred while deleting the draft. Please try again.');
+            confirmDeleteButton.disabled = false;
+            confirmDeleteButton.textContent = originalText;
+        }
     });
 </script>
 {% endblock %}
