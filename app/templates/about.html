@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}About - EventHub{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="bg-slate-800 rounded-lg border border-slate-700 p-8">
+        <h1 class="text-4xl font-bold text-white mb-6">About EventHub</h1>
+        
+        <div class="prose prose-invert max-w-none">
+            <p class="text-slate-300 text-lg mb-6">
+                EventHub is a modern event management platform that makes it easy to discover, create, and manage events. 
+                Whether you're organizing a local meetup, a conference, or an online workshop, EventHub provides the tools you need.
+            </p>
+            
+            <h2 class="text-2xl font-bold text-white mt-8 mb-4">Features</h2>
+            <ul class="list-disc list-inside text-slate-300 space-y-2 mb-6">
+                <li>AI-powered event creation assistant</li>
+                <li>Support for both online and in-person events</li>
+                <li>Chronological event listings</li>
+                <li>User authentication and event management</li>
+                <li>Tag-based event categorization</li>
+            </ul>
+            
+            <h2 class="text-2xl font-bold text-white mt-8 mb-4">Technology</h2>
+            <p class="text-slate-300 mb-4">
+                EventHub is built with modern web technologies:
+            </p>
+            <ul class="list-disc list-inside text-slate-300 space-y-2 mb-6">
+                <li>FastAPI for the backend</li>
+                <li>MongoDB for data storage</li>
+                <li>LangGraph and Ollama for AI-powered event creation</li>
+                <li>HTMX for dynamic interactions</li>
+                <li>Tailwind CSS for styling</li>
+            </ul>
+            
+            <h2 class="text-2xl font-bold text-white mt-8 mb-4">Get Started</h2>
+            <p class="text-slate-300 mb-4">
+                Ready to create your first event? 
+                {% if current_user %}
+                <a href="/create-event" class="text-blue-400 hover:text-blue-300 font-medium">Start creating now</a>!
+                {% else %}
+                <a href="/register" class="text-blue-400 hover:text-blue-300 font-medium">Sign up</a> to get started!
+                {% endif %}
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

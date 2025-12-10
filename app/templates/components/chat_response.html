@@ -1,0 +1,37 @@
+<!-- app/templates/components/chat_response.html -->
+
+<!-- Only show the AI's Response (user message is already shown immediately via JavaScript) -->
+<div class="flex flex-col space-y-1 items-start mt-4">
+    <div class="bg-slate-700 text-slate-100 p-3 rounded-lg rounded-tl-none max-w-[80%]">
+        {{ ai_message }}
+    </div>
+</div>
+
+<!-- 3. HTMX OOB Swap: Updates the Event Preview Panel automatically -->
+<div id="event-preview-container" hx-swap-oob="true" class="flex-1 h-0 overflow-y-auto px-6 min-h-0 custom-scrollbar">
+    {% include "components/event_preview_content.html" %}
+</div>
+
+{# Calculate validation status for Save button #}
+{% set has_title = draft.title is defined and draft.title %}
+{% set has_is_online = draft.is_online is not none %}
+{% set has_start_time = draft.start_time is defined and draft.start_time %}
+{% set needs_location = draft.is_online == false %}
+{% set has_location = draft.location_address is defined and draft.location_address %}
+{% set location_valid = not needs_location or has_location %}
+{% set can_publish = has_title and has_is_online and has_start_time and location_valid %}
+
+<!-- OOB Swap: Update Save Event Button state -->
+<div id="save-event-button-container" hx-swap-oob="true">
+    <form method="POST" action="/save-event" class="flex justify-end">
+        <button type="submit" 
+                {% if not can_publish %}disabled{% endif %}
+                class="{% if can_publish %}bg-emerald-600 hover:bg-emerald-500{% else %}bg-slate-700 cursor-not-allowed{% endif %} text-white px-6 py-3 rounded-lg font-semibold transition disabled:opacity-50">
+            {% if can_publish %}
+                Save Event
+            {% else %}
+                Complete Required Fields
+            {% endif %}
+        </button>
+    </form>
+</div>

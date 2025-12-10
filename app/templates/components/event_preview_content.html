@@ -1,0 +1,235 @@
+<!-- app/templates/components/event_preview_content.html -->
+{% set schema_props = schema.get("properties", {}) %}
+{% set special_fields = ["title", "is_online", "cost", "location_address", "start_time", "end_time", "description", "tags", "media_urls"] %}
+
+{# Calculate validation status #}
+{% set has_title = draft.title is defined and draft.title %}
+{% set has_is_online = draft.is_online is not none %}
+{% set has_start_time = draft.start_time is defined and draft.start_time %}
+{% set needs_location = draft.is_online == false %}
+{% set has_location = draft.location_address is defined and draft.location_address %}
+{% set location_valid = not needs_location or has_location %}
+{% set can_publish = has_title and has_is_online and has_start_time and location_valid %}
+
+<div class="space-y-6 pb-4" data-can-publish="{{ 'true' if can_publish else 'false' }}"
+     data-has-title="{{ 'true' if has_title else 'false' }}"
+     data-has-is-online="{{ 'true' if has_is_online else 'false' }}"
+     data-has-start-time="{{ 'true' if has_start_time else 'false' }}"
+     data-location-valid="{{ 'true' if location_valid else 'false' }}"
+     id="event-preview-data">
+    
+    {# Special handling for title - large display #}
+    {% if "title" in schema_props %}
+        <div class="bg-slate-900 p-4 rounded-lg border border-slate-800">
+            <label class="block text-xs text-slate-500 mb-1 uppercase">{{ schema_props.title.description or "Event Title" }}</label>
+            {% if draft.title %}
+                <div class="text-2xl font-bold text-white">{{ draft.title }}</div>
+            {% else %}
+                <div class="text-slate-600 italic">Not specified...</div>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {# Special handling for is_online and cost - side by side #}
+    {% if "is_online" in schema_props or "cost" in schema_props %}
+        <div class="grid grid-cols-2 gap-4">
+            {% if "is_online" in schema_props %}
+                <div class="bg-slate-900 p-4 rounded-lg border border-slate-800">
+                    <label class="block text-xs text-slate-500 mb-1 uppercase">{{ schema_props.is_online.description or "Format" }}</label>
+                    {% if draft.is_online is not none %}
+                        {% if draft.is_online %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900 text-green-200">
+                                Online Event
+                            </span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-900 text-purple-200">
+                                In-Person
+                            </span>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-slate-600 italic">Pending...</div>
+                    {% endif %}
+                </div>
+            {% endif %}
+            {% if "cost" in schema_props %}
+                <div class="bg-slate-900 p-4 rounded-lg border border-slate-800">
+                    <label class="block text-xs text-slate-500 mb-1 uppercase">{{ schema_props.cost.description or "Cost" }}</label>
+                    {% if draft.cost is not none %}
+                        <div class="text-lg text-emerald-400 font-mono">
+                            {% if draft.cost == 0 %}
+                                Free
+                            {% else %}
+                                ${{ draft.cost }}
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="text-slate-600 italic">Pending...</div>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {# Special handling for location_address with conditional warning #}
+    {% if "location_address" in schema_props %}
+        <div class="bg-slate-900 p-4 rounded-lg border border-slate-800">
+            <label class="block text-xs text-slate-500 mb-1 uppercase">Location / Address</label>
+            {% if draft.location_address %}
+                <div class="text-slate-200">{{ draft.location_address }}</div>
+            {% elif draft.is_online == false %}
+                <div class="text-red-400 text-sm font-semibold animate-pulse">⚠ Required for physical events</div>
+            {% else %}
+                <div class="text-slate-600 italic">---</div>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {# Special handling for start_time and end_time - grouped together #}
+    {% if "start_time" in schema_props or "end_time" in schema_props %}
+        <div class="bg-slate-900 p-4 rounded-lg border border-slate-800">
+            <label class="block text-xs text-slate-500 mb-1 uppercase">Schedule</label>
+            <div class="flex flex-col gap-2">
+                {% if "start_time" in schema_props %}
+                    <div class="flex flex-col">
+                        <span class="text-slate-400 text-xs mb-1">Start:</span>
+                        <span class="text-slate-200 text-sm">
+                            {% if draft.start_time %}
+                                {{ draft.start_time | format_datetime }}
+                            {% else %}
+                                ...
+                            {% endif %}
+                        </span>
+                    </div>
+                {% endif %}
+                {% if "end_time" in schema_props %}
+                    <div class="flex flex-col">
+                        <span class="text-slate-400 text-xs mb-1">End:</span>
+                        <span class="text-slate-200 text-sm">
+                            {% if draft.end_time %}
+                                {{ draft.end_time | format_datetime }}
+                            {% else %}
+                                ...
+                            {% endif %}
+                        </span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
+    {# Special handling for description - multi-line text #}
+    {% if "description" in schema_props %}
+        <div class="bg-slate-900 p-4 rounded-lg border border-slate-800">
+            <label class="block text-xs text-slate-500 mb-1 uppercase">{{ schema_props.description.description or "Description" }}</label>
+            <p class="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">{{ draft.description or '...' }}</p>
+        </div>
+    {% endif %}
+
+    {# Special handling for tags and media_urls - grouped together #}
+    {% if "tags" in schema_props or "media_urls" in schema_props %}
+        <div class="bg-slate-900 p-4 rounded-lg border border-slate-800">
+            <label class="block text-xs text-slate-500 mb-1 uppercase">Media & Extras</label>
+            {% if "tags" in schema_props and draft.tags %}
+                <div class="flex flex-wrap gap-2 mt-2">
+                    {% for tag in draft.tags %}
+                        <span class="bg-blue-900 text-blue-200 text-xs px-2 py-1 rounded">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if "media_urls" in schema_props and draft.media_urls %}
+                <div class="mt-2 text-xs text-slate-400">
+                    {{ draft.media_urls|length }} media items attached.
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {# Dynamically render any other fields that aren't in the special cases above #}
+    {% for field_name, field_info in schema_props.items() %}
+        {% if field_name not in special_fields %}
+            {% set field_type = field_info.get("type", "string") %}
+            {% set field_description = field_info.get("description", field_name.replace("_", " ").title()) %}
+            {% set field_value = draft.get(field_name) %}
+            
+            <div class="bg-slate-900 p-4 rounded-lg border border-slate-800">
+                <label class="block text-xs text-slate-500 mb-1 uppercase">{{ field_description }}</label>
+                {% if field_value is none %}
+                    <div class="text-slate-600 italic">Not specified...</div>
+                {% elif field_type == "boolean" %}
+                    {% if field_value %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900 text-green-200">
+                            Yes
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900 text-red-200">
+                            No
+                        </span>
+                    {% endif %}
+                {% elif field_type == "number" or field_type == "integer" %}
+                    <div class="text-slate-200">{{ field_value }}</div>
+                {% elif field_type == "array" %}
+                    {% if field_value %}
+                        <div class="flex flex-wrap gap-2">
+                            {% for item in field_value %}
+                                <span class="bg-slate-700 text-slate-200 text-xs px-2 py-1 rounded">{{ item }}</span>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-slate-600 italic">Empty</div>
+                    {% endif %}
+                {% else %}
+                    {# Default: string or other types #}
+                    <div class="text-slate-200">{{ field_value }}</div>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% endfor %}
+
+    {# Validation Status Box #}
+    <div class="bg-slate-900 p-4 rounded-lg border {% if can_publish %}border-emerald-700{% else %}border-amber-700{% endif %}">
+        <label class="block text-xs text-slate-500 mb-2 uppercase">Publication Status</label>
+        {% if can_publish %}
+            <div class="flex items-center gap-2 text-emerald-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                <span class="font-medium">Ready to publish</span>
+            </div>
+        {% else %}
+            <div class="text-amber-400 text-sm mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <span>Missing required fields:</span>
+            </div>
+            <ul class="text-xs text-slate-400 space-y-1 ml-6">
+                {% if not has_title %}
+                    <li class="flex items-center gap-1">
+                        <span class="text-red-400">✗</span> Event title
+                    </li>
+                {% endif %}
+                {% if not has_is_online %}
+                    <li class="flex items-center gap-1">
+                        <span class="text-red-400">✗</span> Event format (online/in-person)
+                    </li>
+                {% endif %}
+                {% if not has_start_time %}
+                    <li class="flex items-center gap-1">
+                        <span class="text-red-400">✗</span> Start date/time
+                    </li>
+                {% endif %}
+                {% if needs_location and not has_location %}
+                    <li class="flex items-center gap-1">
+                        <span class="text-red-400">✗</span> Location address (required for in-person)
+                    </li>
+                {% endif %}
+            </ul>
+        {% endif %}
+    </div>
+
+    <!-- Debug/JSON View (Optional, good for devs) -->
+    <details class="text-xs text-slate-600 cursor-pointer">
+        <summary>Raw JSON</summary>
+        <pre class="mt-2 overflow-x-auto">{{ draft | tojson(indent=2) }}</pre>
+    </details>
+</div>

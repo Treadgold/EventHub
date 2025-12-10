@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Create Event - EventHub{% endblock %}
+
+{% block content %}
+<div class="flex flex-1 min-h-0">
+    <!-- Left: Chat Interface - Fixed layout with sticky input -->
+    <div class="w-1/2 flex flex-col border-r border-slate-700 min-h-0">
+        <!-- Header - Fixed at top -->
+        <div class="flex-shrink-0 p-4 border-b border-slate-700 bg-slate-800">
+            <h1 class="text-xl font-bold text-blue-400">Event Architect AI</h1>
+            <p class="text-sm text-slate-400">Powered by Ollama & LangGraph</p>
+        </div>
+
+        <!-- Chat History Container - Scrollable middle section -->
+        <div id="chat-history" class="flex-1 h-0 overflow-y-auto p-4 space-y-4 min-h-0 custom-scrollbar">
+            <!-- Initial Greeting -->
+            <div class="flex flex-col space-y-1 items-start">
+                <div class="bg-slate-700 text-slate-100 p-3 rounded-lg rounded-tl-none max-w-[80%]">
+                    Hello! I'm your event planning assistant. I can help you build complex event structures. What kind of event are you planning today?
+                </div>
+            </div>
+            
+            <!-- Render existing chat history from session (persists across page refresh) -->
+            {% for msg in history %}
+                {% if msg[0] == "user" %}
+                    <div class="flex flex-col space-y-1 items-end">
+                        <div class="bg-blue-600 text-white p-3 rounded-lg rounded-tr-none max-w-[80%]">
+                            {{ msg[1] | e | replace('\n', '<br>') | safe }}
+                        </div>
+                    </div>
+                {% elif msg[0] == "ai" %}
+                    <div class="flex flex-col space-y-1 items-start">
+                        <div class="bg-slate-700 text-slate-100 p-3 rounded-lg rounded-tl-none max-w-[80%]">
+                            {{ msg[1] }}
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <!-- Input Area - Fixed at bottom -->
+        <div class="flex-shrink-0 p-4 bg-slate-800 border-t border-slate-700">
+            <form id="chat-form" hx-post="/chat" hx-target="#chat-history" hx-swap="beforeend" 
+                  hx-indicator="#processing-indicator" class="flex gap-2">
+                <div class="flex-1 relative">
+                    <textarea name="user_message" id="user-message-input"
+                       class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 transition resize-none"
+                       placeholder="Describe your event... (Shift+Enter for new line)" required autocomplete="off"
+                       rows="1" style="min-height: 42px; max-height: 200px;"></textarea>
+                    <!-- Processing Indicator -->
+                    <div id="processing-indicator" class="htmx-indicator absolute right-3 top-3">
+                        <div class="flex items-center gap-2 text-blue-400">
+                            <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span class="text-sm">Processing...</span>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" id="send-button" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-lg font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed self-end">
+                    Send
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Right: Event Preview (State Visualization) - Independent scroll -->
+    <div class="w-1/2 bg-slate-950 flex flex-col min-h-0">
+        <!-- Header - Fixed at top -->
+        <div class="flex-shrink-0 p-6 pb-0">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold">Event Draft</h2>
+                <span class="text-xs uppercase tracking-wider text-slate-500 bg-slate-900 px-2 py-1 rounded">Live Preview</span>
+            </div>
+        </div>
+
+        <!-- Scrollable Event Preview Content -->
+        <div id="event-preview-container" class="flex-1 h-0 overflow-y-auto px-6 min-h-0 custom-scrollbar">
+            {% include "components/event_preview_content.html" %}
+        </div>
+        
+        <!-- Save Event Button - Fixed at bottom -->
+        <div class="flex-shrink-0 p-6 pt-4 border-t border-slate-700 bg-slate-950">
+            {% if error %}
+            <div class="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded mb-4">
+                {{ error }}
+            </div>
+            {% endif %}
+            
+            {# Calculate initial validation status #}
+            {% set has_title = draft.title is defined and draft.title %}
+            {% set has_is_online = draft.is_online is not none %}
+            {% set has_start_time = draft.start_time is defined and draft.start_time %}
+            {% set needs_location = draft.is_online == false %}
+            {% set has_location = draft.location_address is defined and draft.location_address %}
+            {% set location_valid = not needs_location or has_location %}
+            {% set can_publish = has_title and has_is_online and has_start_time and location_valid %}
+            
+            <div id="save-event-button-container">
+                <form method="POST" action="/save-event" class="flex justify-end">
+                    <button type="submit" 
+                            {% if not can_publish %}disabled{% endif %}
+                            class="{% if can_publish %}bg-emerald-600 hover:bg-emerald-500{% else %}bg-slate-700 cursor-not-allowed{% endif %} text-white px-6 py-3 rounded-lg font-semibold transition disabled:opacity-50">
+                        {% if can_publish %}
+                            Save Event
+                        {% else %}
+                            Complete Required Fields
+                        {% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const chatForm = document.getElementById('chat-form');
+    const userMessageInput = document.getElementById('user-message-input');
+    const sendButton = document.getElementById('send-button');
+    
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Helper function to immediately show user message
+    function showUserMessage() {
+        const messageText = userMessageInput.value.trim();
+        if (!messageText) return;
+        
+        // Immediately show user message in chat
+        const chatHistory = document.getElementById("chat-history");
+        const userMessageDiv = document.createElement('div');
+        userMessageDiv.className = 'flex flex-col space-y-1 items-end';
+        // Escape HTML and convert newlines to <br>
+        const escapedText = escapeHtml(messageText).replace(/\n/g, '<br>');
+        userMessageDiv.innerHTML = `
+            <div class="bg-blue-600 text-white p-3 rounded-lg rounded-tr-none max-w-[80%]">
+                ${escapedText}
+            </div>
+        `;
+        chatHistory.appendChild(userMessageDiv);
+        
+        // Scroll to bottom
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+    
+    // Auto-resize textarea
+    userMessageInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+    });
+    
+    // Handle Enter vs Shift+Enter
+    userMessageInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (!sendButton.disabled && this.value.trim()) {
+                chatForm.requestSubmit();
+            }
+        }
+        // Shift+Enter allows default behavior (new line)
+    });
+    
+    // Handle form submit (button click or Enter key) - show user message here to avoid duplicates
+    chatForm.addEventListener('submit', function(e) {
+        if (userMessageInput.value.trim() && !sendButton.disabled) {
+            showUserMessage();
+        }
+    });
+    
+    // Disable input and button when processing starts, and clear input after HTMX reads it
+    document.body.addEventListener('htmx:beforeRequest', function(evt) {
+        userMessageInput.disabled = true;
+        sendButton.disabled = true;
+        // Clear input now that HTMX has read the form data
+        userMessageInput.value = '';
+        userMessageInput.style.height = 'auto';
+    });
+    
+    // Re-enable input and button when request completes (success or error)
+    document.body.addEventListener('htmx:afterRequest', function(evt) {
+        userMessageInput.disabled = false;
+        sendButton.disabled = false;
+        userMessageInput.focus();
+    });
+    
+    // Handle successful response
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        // Auto scroll chat to bottom
+        const chatContainer = document.getElementById("chat-history");
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
+</script>
+{% endblock %}
