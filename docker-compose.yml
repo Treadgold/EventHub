@@ -22,8 +22,7 @@ services:
       dockerfile: Dockerfile.whisper
     container_name: eventhub_whisper
     restart: unless-stopped
-    ports:
-      - "8080:8080"
+    # No external ports - only accessible internally by the web service
     # Optional: Mount a volume to persist models (speeds up subsequent starts)
     volumes:
       - whisper_models:/app/models

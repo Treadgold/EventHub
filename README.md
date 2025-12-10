@@ -5,6 +5,7 @@ A modern event management platform with AI-powered event creation.
 ## Features
 
 - AI-powered event creation assistant using LangGraph and Ollama (GPT-oss 20b model)
+- Voice input support with Whisper speech-to-text (automatically spun up as a separate Docker container)
 - Role-based authentication (Admin, Event Organiser, User)
 - User authentication and registration
 - MongoDB database for persistent storage
@@ -63,6 +64,7 @@ A modern event management platform with AI-powered event creation.
 
 - **Web Application**: FastAPI server running on port 8011
 - **MongoDB**: Database server running on port 27017
+- **Whisper**: Speech-to-text service running internally (not exposed externally) for voice input processing
 
 ## Environment Variables
 
