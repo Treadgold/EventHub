@@ -3,47 +3,119 @@
 {% block title %}About - EventHub{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    <div class="bg-slate-800 rounded-lg border border-slate-700 p-8">
-        <h1 class="text-4xl font-bold text-white mb-6">About EventHub</h1>
+<div class="flex-1 overflow-y-auto custom-scrollbar">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="bg-slate-800 rounded-lg border border-slate-700 p-8">
+            <h1 class="text-4xl font-bold text-white mb-6">About EventHub</h1>
+            
+            <div class="prose prose-invert max-w-none">
+                <p class="text-slate-300 text-lg mb-6">
+                    EventHub is a modern event management platform that makes it easy to discover, create, and manage events. 
+                    Whether you're organizing a local meetup, a conference, or an online workshop, EventHub provides the tools you need.
+                </p>
+                
+                <h2 class="text-2xl font-bold text-white mt-8 mb-4">Features</h2>
+                <ul class="list-disc list-inside text-slate-300 space-y-2 mb-6">
+                    <li>AI-powered event creation assistant</li>
+                    <li>Support for both online and in-person events</li>
+                    <li>Chronological event listings</li>
+                    <li>User authentication and event management</li>
+                    <li>Tag-based event categorization</li>
+                </ul>
+                
+                <h2 class="text-2xl font-bold text-white mt-8 mb-4">Technology</h2>
+                <p class="text-slate-300 mb-4">
+                    EventHub is built with modern web technologies:
+                </p>
+                <ul class="list-disc list-inside text-slate-300 space-y-2 mb-6">
+                    <li>FastAPI for the backend</li>
+                    <li>MongoDB for data storage</li>
+                    <li>LangGraph and Ollama for AI-powered event creation</li>
+                    <li>HTMX for dynamic interactions</li>
+                    <li>Tailwind CSS for styling</li>
+                </ul>
+                
+                <h2 class="text-2xl font-bold text-white mt-8 mb-4">Our Mission</h2>
+                <p class="text-slate-300 mb-6">
+                    We believe that bringing people together should be effortless. EventHub was created to remove the friction 
+                    from event planning, so you can focus on what matters most: creating memorable experiences for your attendees.
+                </p>
+                
+                <h2 class="text-2xl font-bold text-white mt-8 mb-4">Why Choose EventHub?</h2>
+                <div class="grid gap-4 mb-8">
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-white font-semibold">AI-Powered Creation</h3>
+                            <p class="text-slate-400 text-sm">Our intelligent assistant helps you craft the perfect event description in seconds.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-white font-semibold">Flexible Event Types</h3>
+                            <p class="text-slate-400 text-sm">Host online webinars, in-person gatherings, or hybrid events with ease.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-white font-semibold">Simple & Beautiful</h3>
+                            <p class="text-slate-400 text-sm">A clean, modern interface that makes event management a pleasure.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         
-        <div class="prose prose-invert max-w-none">
-            <p class="text-slate-300 text-lg mb-6">
-                EventHub is a modern event management platform that makes it easy to discover, create, and manage events. 
-                Whether you're organizing a local meetup, a conference, or an online workshop, EventHub provides the tools you need.
+        <!-- Call to Action -->
+        {% if not current_user %}
+        <div class="mt-8 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-lg p-8 text-center">
+            <h2 class="text-3xl font-bold text-white mb-3">Ready to Get Started?</h2>
+            <p class="text-emerald-100 text-lg mb-6 max-w-xl mx-auto">
+                Join EventHub today and start creating amazing events. It's free to sign up and takes less than a minute.
             </p>
-            
-            <h2 class="text-2xl font-bold text-white mt-8 mb-4">Features</h2>
-            <ul class="list-disc list-inside text-slate-300 space-y-2 mb-6">
-                <li>AI-powered event creation assistant</li>
-                <li>Support for both online and in-person events</li>
-                <li>Chronological event listings</li>
-                <li>User authentication and event management</li>
-                <li>Tag-based event categorization</li>
-            </ul>
-            
-            <h2 class="text-2xl font-bold text-white mt-8 mb-4">Technology</h2>
-            <p class="text-slate-300 mb-4">
-                EventHub is built with modern web technologies:
-            </p>
-            <ul class="list-disc list-inside text-slate-300 space-y-2 mb-6">
-                <li>FastAPI for the backend</li>
-                <li>MongoDB for data storage</li>
-                <li>LangGraph and Ollama for AI-powered event creation</li>
-                <li>HTMX for dynamic interactions</li>
-                <li>Tailwind CSS for styling</li>
-            </ul>
-            
-            <h2 class="text-2xl font-bold text-white mt-8 mb-4">Get Started</h2>
-            <p class="text-slate-300 mb-4">
-                Ready to create your first event? 
-                {% if current_user %}
-                <a href="/create-event" class="text-blue-400 hover:text-blue-300 font-medium">Start creating now</a>!
-                {% else %}
-                <a href="/register" class="text-blue-400 hover:text-blue-300 font-medium">Sign up</a> to get started!
-                {% endif %}
+            <a href="/register" 
+               class="inline-flex items-center gap-2 bg-white text-emerald-700 font-bold py-3 px-8 rounded-lg hover:bg-emerald-50 transition-colors shadow-lg hover:shadow-xl">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                </svg>
+                Create Your Free Account
+            </a>
+            <p class="text-emerald-200 text-sm mt-4">
+                Already have an account? <a href="/login" class="text-white underline hover:no-underline font-medium">Sign in here</a>
             </p>
         </div>
+        {% else %}
+        <div class="mt-8 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-lg p-8 text-center">
+            <h2 class="text-3xl font-bold text-white mb-3">Create Your Next Event</h2>
+            <p class="text-emerald-100 text-lg mb-6 max-w-xl mx-auto">
+                You're all set! Start planning your next amazing event with our AI-powered assistant.
+            </p>
+            <a href="/create-event" 
+               class="inline-flex items-center gap-2 bg-white text-emerald-700 font-bold py-3 px-8 rounded-lg hover:bg-emerald-50 transition-colors shadow-lg hover:shadow-xl">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Create New Event
+            </a>
+        </div>
+        {% endif %}
+        
+        <!-- Footer spacing -->
+        <div class="h-8"></div>
     </div>
 </div>
 {% endblock %}
